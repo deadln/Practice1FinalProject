@@ -9,6 +9,7 @@ import pickle
 import re
 from datetime import datetime
 from datetime import timedelta
+import json
 
 instruction = "Команды для работы с ботом:\n" 
 instruction += "XXXX-XX-XX - сохранить номер своей группы\n"
@@ -51,6 +52,105 @@ days_of_week = {
     6 : "Воскресенье"
 
     }
+
+weather_type = {
+    "Thunderstorm" : "гроза",
+    "Drizzle" : "изморось",
+    "Rain" : "дождь",
+    "Snow" : "снег",
+    "Mist" : "туман",
+    "Smoke" : "дымка",
+    "Haze" : "туман",
+    "Fog" : "туман",
+    "Sand" : "песчаный вихрь",
+    "Dust" : "пыльная буря",
+    "Ash" : "вулканический пепел",
+    "Squall" : "шквал",
+    "Tornado" : "ураган",
+    "Clear" : "ясно",
+    "Clouds" : "облачно",
+
+    }
+
+weather_description = {
+   "thunderstorm with light rain" : "Гроза с легким дождем", "thunderstorm with rain" : "Гроза с дождём", 
+   "thunderstorm with heavy rain" : "Гроза с сильным дождем", "light thunderstorm" : "Небольшая гроза", 
+   "thunderstorm" : "Гроза", "heavy thunderstorm" : "Сильная гроза", 
+   "ragged thunderstorm" : "Рваная гроза", "thunderstorm with light drizzle" : "Гроза с легкой изморосью", 
+   "thunderstorm with drizzle" : "Гроза с изморосью", "thunderstorm with heavy drizzle" : "Гроза с сильной изморосью", 
+   "light intensity drizzle" : "Легкая изморось", "drizzle" : "Изморось", 
+   "heavy intensity drizzle" : "Сильная изморось", "light intensity drizzle rain" : "Легкий моросящий дождь", 
+   "drizzle rain" : "Моросящий дождь", "heavy intensity drizzle rain" : "Сильный моросящий дождь", 
+   "shower rain and drizzle" : "Ливень и изморось", "heavy shower rain and drizzle" : "Сильный ливень и изморось", 
+   "shower drizzle" : "Ливневая изморось", "light rain" : "Легкий дождь", 
+   "moderate rain" : "Умеренный дождь", "heavy intensity rain" : "Интенсивный дождь", 
+   "very heavy rain" : "Очень сильный дождь", "extreme rain" : "Сильный дождь", 
+   "freezing rain" : "Ледяной дождь", "light intensity shower rain" : "Легкий ливневый дождь", 
+   "shower rain" : "Ливневый дождь", "heavy intensity shower rain" : "Очень сильный ливневый дождь", 
+   "ragged shower rain" : "Рваный ливневый дождь", "light snow	" : "Небольшой снегопад", 
+   "Snow" : "Снегопад", "Heavy snow" : "Сильный снегопад", 
+   "Sleet" : "Дождь со снегом", "Light shower sleet" : "Небольшой ливневый дождь со снегом", 
+   "Shower sleet" : "Ливневый дождь со снегом", "Light rain and snow" : "Небольшой дождь и снег",
+   "Rain and snow" : "Дождь и снег", "Light shower snow" : "Небольшой ливень снега", 
+   "Shower snow" : "Ливень снега", "Heavy shower snow" : "Сильный ливень снега", 
+   "mist" : "ТУман", "Smoke" : "Дымка", 
+   "Haze" : "Туман", "sand/ dust whirls	" : "Песчаные / пыльные вихри", 
+   "fog" : "Туман", "sand" : "Песчаный вихрь", 
+   "dust" : "Пыльная буря", "volcanic ash" : "Вулканический пепел", 
+   "squalls" : "Шквал", "tornado" : "Ураган", 
+   "clear sky" : "Ясное небо", "few clouds: 11-25%" : "Мало облаков", 
+   "scattered clouds: 25-50%" : "Рассеянные облака", "broken clouds: 51-84%" : "Рваные облака", 
+   "overcast clouds: 85-100%" : "Пасмурные облака"
+}
+
+def get_bofort(speed):
+    if speed <= 0.2:
+        return "штиль"
+    if speed <= 1.5:
+        return "тихий"
+    if speed <= 3.3:
+        return "легкий"
+    if speed <= 5.4:
+        return "слабый"
+    if speed <= 7.9:
+        return "умеренный"
+    if speed <= 10.7:
+        return "свежий"
+    if speed <= 13.8:
+        return "сильный"
+    if speed <= 17.1:
+        return "крепкий"
+    if speed <= 20.7:
+        return "очень крепкий"
+    if speed <= 24.4:
+        return "шторм"
+    if speed <= 28.4:
+        return "сильный шторм(буря)"
+    if speed <= 32.6:
+        return "жестокий шторм"
+    if speed > 32.6:
+        return "ураган"
+
+def get_rumb(angle):
+    if angle <= 22.50:
+        return "северный"
+    if angle <= 67.50:
+        return "северо-восточный"
+    if angle <= 112.50:
+        return "восточный"
+    if angle <= 157.50:
+        return "юго-восточный"
+    if angle <= 202.50:
+        return "южный"
+    if angle <= 247.50:
+        return "юго-западный"
+    if angle <= 292.50:
+        return "западный"
+    if angle <= 337.50:
+        return "северо-западный"
+    if angle > 337.50:
+        return "северный"
+
 
 def main():
     #Получение файлов расписания
@@ -687,6 +787,22 @@ def main():
                             random_id = get_random_id(),
                             message = "Некорректный номер группы - " + userlist[event.user_id]
                             )
+
+        elif event.type == VkEventType.MESSAGE_NEW and event.to_me and event.text.lower() == "погода":
+            w = requests.get("http://api.openweathermap.org/data/2.5/weather?q=moscow&appid=9b39cc1cf3f2f9d9556efd5a0acbb4f2&units=metric")
+            weather = w.json()
+            output = "Погода в Москве: " + weather_type[weather["weather"][0]["main"]] + "\n"
+            output += weather_description[weather["weather"][0]["description"]] + ", температура: "
+            output += str(int(weather["main"]["temp_min"])) + "-" + str(int(weather["main"]["temp_max"])) + "˚C\n"
+            output += "Давление: " + str(weather["main"]["pressure"]) + " мм рт. ст., влажность: "
+            output += str(weather["main"]["humidity"]) + "%\n"
+            output += "Ветер: " + get_bofort(weather["wind"]["speed"]) + ", " + str(weather["wind"]["speed"]) + "м/с, "
+            output += get_rumb(weather["wind"]["deg"])
+            vk.messages.send(
+            user_id = event.user_id,
+            random_id = get_random_id(),
+            message = output
+            )
 
         elif event.type == VkEventType.MESSAGE_NEW and event.to_me:
             vk.messages.send(
